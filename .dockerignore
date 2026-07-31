@@ -1,0 +1,8 @@
+.git
+.mvn
+target
+.idea
+*.iml
+Dockerfile
+docker-compose.yml
+PayrollSync_Technical_Design.md
