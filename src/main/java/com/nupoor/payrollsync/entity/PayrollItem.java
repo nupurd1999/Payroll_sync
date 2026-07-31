@@ -71,6 +71,7 @@ public class PayrollItem {
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public PayrollBatch getBatch() { return batch; }
     public void setBatch(PayrollBatch batch) { this.batch = batch; }
 

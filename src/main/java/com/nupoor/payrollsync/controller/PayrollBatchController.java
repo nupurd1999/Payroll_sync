@@ -59,14 +59,39 @@ public class PayrollBatchController {
     }
 
     @GetMapping("/{id}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> getBatchDetails(@PathVariable UUID id) {
         PayrollBatch batch = batchRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Batch not found for ID: " + id));
         List<PayrollItem> items = itemRepository.findByBatchId(id);
 
+        List<Map<String, Object>> itemDtos = items.stream().map(item -> {
+            Map<String, Object> dto = new HashMap<>();
+            dto.put("id", item.getId());
+            dto.put("grossSalary", item.getGrossSalary());
+            dto.put("taxDeductions", item.getTaxDeductions());
+            dto.put("socialSecurityDeductions", item.getSocialSecurityDeductions());
+            dto.put("netSalary", item.getNetSalary());
+            dto.put("status", item.getStatus());
+            dto.put("transactionReference", item.getTransactionReference());
+            
+            if (item.getEmployee() != null) {
+                Map<String, Object> empMap = new HashMap<>();
+                empMap.put("id", item.getEmployee().getId());
+                empMap.put("employeeCode", item.getEmployee().getEmployeeCode());
+                empMap.put("firstName", item.getEmployee().getFirstName());
+                empMap.put("lastName", item.getEmployee().getLastName());
+                empMap.put("email", item.getEmployee().getEmail());
+                empMap.put("iban", item.getEmployee().getIban());
+                empMap.put("bic", item.getEmployee().getBic());
+                dto.put("employee", empMap);
+            }
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
+
         Map<String, Object> result = new HashMap<>();
         result.put("batch", batch);
-        result.put("items", items);
+        result.put("items", itemDtos);
         return ResponseEntity.ok(result);
     }
 
