@@ -275,6 +275,29 @@
 
   </div>
 
+  <!-- Batch Details & Line Items Modal -->
+  <div id="batch-modal" class="modal-overlay" onclick="closeBatchModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-batch-ref" style="font-family:var(--font-heading); color:var(--primary); font-size:1.25rem;">Batch Details</h3>
+          <div id="modal-batch-sub" style="font-size:0.8rem; color:var(--text-muted);">SEPA ISO 20022 Line Items & Reconciliation</div>
+        </div>
+        <button class="btn btn-secondary" style="padding:0.35rem 0.65rem;" onclick="closeBatchModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-batch-body">
+        <div style="text-align:center; padding:2rem; color:var(--text-muted);">Loading batch line items...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeBatchModal()">Close</button>
+        <button class="btn btn-emerald" id="modal-download-sepa-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Download SEPA ISO 20022 XML
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container"></div>
 
   <script src="app.js"></script>

@@ -143,13 +143,80 @@ async function loadBatches() {
   }
 }
 
-function selectBatch(batchId) {
+async function selectBatch(batchId) {
   activeBatchId = batchId;
-  document.getElementById('batch-progress-panel').style.display = 'block';
-  document.getElementById('batch-status-badge').innerText = 'SELECTED';
-  document.getElementById('batch-progress-text').innerText = `Batch ${batchId} selected. Ready for disbursement or SEPA XML export.`;
-  document.getElementById('batch-progress-percent').innerText = '100%';
-  document.getElementById('batch-progress-fill').style.width = '100%';
+  const modal = document.getElementById('batch-modal');
+  const modalBody = document.getElementById('modal-batch-body');
+  const modalRef = document.getElementById('modal-batch-ref');
+  const modalSub = document.getElementById('modal-batch-sub');
+  const sepaBtn = document.getElementById('modal-download-sepa-btn');
+
+  sepaBtn.onclick = () => window.open(`${API_BASE}/payroll/batches/${batchId}/sepa-xml`, '_blank');
+
+  modalBody.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Loading batch line items...</div>`;
+  modal.classList.add('active');
+
+  try {
+    const res = await fetch(`${API_BASE}/payroll/batches/${batchId}`);
+    if (!res.ok) throw new Error('Failed to fetch batch details');
+    const data = await res.json();
+
+    const batch = data.batch;
+    const items = data.items || [];
+
+    modalRef.innerText = batch.batchReference;
+    modalSub.innerText = `Payroll Period: ${batch.payrollPeriod} | Idempotency Key: ${batch.idempotencyKey}`;
+
+    modalBody.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.5rem; background:var(--bg-surface); padding:1rem; border-radius:8px;">
+        <div><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Total Gross</span><div style="font-weight:700; font-size:1.1rem; color:var(--text-main);">€${formatNumber(batch.totalGross)}</div></div>
+        <div><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Total Tax & Social</span><div style="font-weight:700; font-size:1.1rem; color:var(--accent-rose);">€${formatNumber(batch.totalTax)}</div></div>
+        <div><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Total Net Disbursed</span><div style="font-weight:700; font-size:1.1rem; color:var(--accent-emerald);">€${formatNumber(batch.totalNet)}</div></div>
+        <div><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Status</span><div><span class="badge ${batch.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}">${escapeHtml(batch.status)}</span></div></div>
+      </div>
+
+      <h4 style="font-family:var(--font-heading); color:var(--primary); font-size:1rem; margin-bottom:0.75rem;">Employee Payout Line Items (${items.length})</h4>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Gross (€)</th>
+              <th>Income Tax (€)</th>
+              <th>Social Security (€)</th>
+              <th>Net Payout (€)</th>
+              <th>Status</th>
+              <th>Tx Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.length === 0 ? `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No line items in this batch.</td></tr>` : items.map(item => `
+              <tr>
+                <td>
+                  <strong style="color:var(--text-main);">${escapeHtml(item.employee ? item.employee.firstName + ' ' + item.employee.lastName : 'Employee')}</strong>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(item.employee ? item.employee.employeeCode : '')}</div>
+                </td>
+                <td>€${formatNumber(item.grossSalary)}</td>
+                <td style="color:var(--accent-rose);">€${formatNumber(item.taxDeductions)}</td>
+                <td style="color:var(--accent-amber);">€${formatNumber(item.socialSecurityDeductions)}</td>
+                <td style="font-weight:700; color:var(--accent-emerald);">€${formatNumber(item.netSalary)}</td>
+                <td><span class="badge ${item.status === 'SUCCESS' ? 'badge-success' : 'badge-warning'}">${escapeHtml(item.status)}</span></td>
+                <td style="font-family:var(--font-mono); font-size:0.8rem; color:var(--text-muted);">${escapeHtml(item.transactionReference || 'PENDING')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+  } catch (err) {
+    console.error(err);
+    modalBody.innerHTML = `<div style="color:var(--accent-rose); text-align:center; padding:1.5rem;">Failed to load batch details: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeBatchModal() {
+  document.getElementById('batch-modal').classList.remove('active');
 }
 
 function generateNewIdempotencyKey() {
