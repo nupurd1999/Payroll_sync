@@ -152,6 +152,13 @@ function selectBatch(batchId) {
   document.getElementById('batch-progress-fill').style.width = '100%';
 }
 
+function generateNewIdempotencyKey() {
+  const period = document.getElementById('batch-period').value || '2026-07';
+  const newKey = 'IDEM-' + period + '-' + Math.floor(1000 + Math.random() * 9000);
+  document.getElementById('batch-idempotency').value = newKey;
+  return newKey;
+}
+
 async function handleCreateBatch(e) {
   e.preventDefault();
   const period = document.getElementById('batch-period').value;
@@ -166,7 +173,14 @@ async function handleCreateBatch(e) {
 
     if (!res.ok) {
       const err = await res.json();
-      alert('Failed to create batch: ' + (err.message || JSON.stringify(err)));
+      const msg = err.message || JSON.stringify(err);
+      
+      if (msg.includes('Duplicate batch request') || msg.includes('idempotency')) {
+        const nextKey = generateNewIdempotencyKey();
+        alert(`🔒 Idempotency Safety Catch:\n\nBatch request for '${idempotencyKey}' was already created and processed.\n\nA fresh key '${nextKey}' has been generated. Click 'Calculate Batch & Tax Deductions' again to proceed.`);
+      } else {
+        alert('Failed to create batch: ' + msg);
+      }
       return;
     }
 
@@ -182,7 +196,11 @@ async function handleCreateBatch(e) {
 
     subscribeBatchProgress(batch.id);
     loadBatches();
-    alert(`Batch ${batch.batchReference} calculated successfully! Net payout sum: €${formatNumber(batch.totalNet)}`);
+    
+    // Auto-generate fresh key for next batch
+    generateNewIdempotencyKey();
+
+    alert(`Batch ${batch.batchReference} calculated successfully!\n\nNet Payout Total: €${formatNumber(batch.totalNet)}`);
   } catch (err) {
     alert('Error creating batch: ' + err.message);
   }
