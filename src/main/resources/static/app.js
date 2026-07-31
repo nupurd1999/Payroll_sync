@@ -260,23 +260,59 @@ function downloadSepaXml() {
   window.open(`${API_BASE}/payroll/batches/${activeBatchId}/sepa-xml`, '_blank');
 }
 
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerText = message;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 async function loadAuditLogs() {
   const container = document.getElementById('audit-logs-container');
-  container.innerHTML = `
-    <div class="glass-panel" style="margin-bottom:1rem;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-        <div>
-          <span class="badge badge-success">VERIFIED INTEGRITY</span>
-          <strong style="margin-left:0.5rem;">BATCH_DISBURSED</strong>
+  try {
+    const res = await fetch(`${API_BASE}/audit-logs`);
+    if (!res.ok) throw new Error('Failed to fetch audit logs');
+    const logs = await res.json();
+
+    if (logs.length === 0) {
+      container.innerHTML = `<div style="color:var(--text-muted); text-align:center; padding:2rem;">No financial audit entries recorded yet. Create or disburse a batch to generate cryptographic audit seals.</div>`;
+      return;
+    }
+
+    container.innerHTML = logs.map(log => `
+      <div class="glass-panel" style="margin-bottom:1rem; padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+          <div>
+            <span class="badge ${log.verified ? 'badge-success' : 'badge-warning'}">
+              ${log.verified ? 'VERIFIED INTEGRITY' : 'TAMPER DETECTED'}
+            </span>
+            <strong style="margin-left:0.6rem; color:var(--text-main); font-family:var(--font-mono);">${escapeHtml(log.action)}</strong>
+            <span style="color:var(--text-muted); font-size:0.8rem; margin-left:0.5rem;">[${escapeHtml(log.entityName)} ID: ${escapeHtml(log.entityId)}]</span>
+          </div>
+          <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim);">${new Date(log.createdAt).toLocaleString()}</span>
         </div>
-        <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">${new Date().toISOString()}</span>
+        <div class="code-block" style="font-size:0.8rem; padding:0.75rem;">
+<span style="color:var(--accent-emerald);">HMAC-SHA256:</span> ${escapeHtml(log.hmacSignature)}
+<span style="color:#a5b4fc;">Payload:</span> ${escapeHtml(log.payloadJson)}
+        </div>
       </div>
-      <div class="code-block">
-HMAC-SHA256: 8f9b2d3e4f1a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c
-Payload: {"entityName":"PayrollBatch","action":"BATCH_DISBURSED","idempotencyKey":"IDEM-2026-07"}
-      </div>
-    </div>
-  `;
+    `).join('');
+
+  } catch (err) {
+    console.error('Error loading audit logs:', err);
+    container.innerHTML = `<div style="color:var(--accent-rose); text-align:center;">Failed to load audit logs: ${escapeHtml(err.message)}</div>`;
+  }
 }
 
 function connectWebSocket() {

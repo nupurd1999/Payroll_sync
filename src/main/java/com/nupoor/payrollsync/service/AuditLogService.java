@@ -29,6 +29,10 @@ public class AuditLogService {
         return auditLogRepository.save(auditLog);
     }
 
+    public java.util.List<AuditLog> getAllAuditLogs() {
+        return auditLogRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+    }
+
     public boolean verifyIntegrity(AuditLog auditLog) {
         if (auditLog == null) return false;
         String recalculated = calculateHmac(auditLog.getEntityName() + ":" + auditLog.getEntityId() + ":" + auditLog.getAction() + ":" + auditLog.getPayloadJson());
