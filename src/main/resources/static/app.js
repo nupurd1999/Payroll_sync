@@ -101,11 +101,55 @@ async function handleAddEmployee(e) {
 
 async function loadBatches() {
   try {
-    // We can fetch batches or mock if endpoint is batch-list
-    document.getElementById('metric-batches').innerText = '1+';
+    const res = await fetch(`${API_BASE}/payroll/batches`);
+    if (!res.ok) throw new Error('Failed to fetch batches');
+    const batches = await res.json();
+
+    document.getElementById('metric-batches').innerText = batches.length;
+
+    let totalDisbursed = 0;
+    batches.forEach(b => {
+      if (b.status === 'COMPLETED') {
+        totalDisbursed += parseFloat(b.totalNet || 0);
+      }
+    });
+
+    document.getElementById('metric-disbursed').innerText = '€' + formatNumber(totalDisbursed);
+
+    const tbody = document.getElementById('batches-tbody');
+    if (batches.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No batches created yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = batches.map(b => `
+      <tr>
+        <td><strong style="color:var(--primary); font-family:var(--font-mono);">${escapeHtml(b.batchReference)}</strong></td>
+        <td>${escapeHtml(b.payrollPeriod)}</td>
+        <td style="font-weight:600;">€${formatNumber(b.totalGross)}</td>
+        <td style="color:var(--accent-rose);">€${formatNumber(b.totalTax)}</td>
+        <td style="font-weight:700; color:var(--accent-emerald);">€${formatNumber(b.totalNet)}</td>
+        <td><span class="badge ${b.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}">${escapeHtml(b.status)}</span></td>
+        <td>
+          <button class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.8rem;" onclick="selectBatch('${b.id}')">
+            View / SEPA
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
   } catch (err) {
-    console.error(err);
+    console.error('Error loading batches:', err);
   }
+}
+
+function selectBatch(batchId) {
+  activeBatchId = batchId;
+  document.getElementById('batch-progress-panel').style.display = 'block';
+  document.getElementById('batch-status-badge').innerText = 'SELECTED';
+  document.getElementById('batch-progress-text').innerText = `Batch ${batchId} selected. Ready for disbursement or SEPA XML export.`;
+  document.getElementById('batch-progress-percent').innerText = '100%';
+  document.getElementById('batch-progress-fill').style.width = '100%';
 }
 
 async function handleCreateBatch(e) {
@@ -131,11 +175,13 @@ async function handleCreateBatch(e) {
 
     document.getElementById('batch-progress-panel').style.display = 'block';
     document.getElementById('batch-status-badge').innerText = batch.status;
+    document.getElementById('batch-status-badge').className = 'badge badge-warning';
     document.getElementById('batch-progress-text').innerText = `Batch ${batch.batchReference} calculated (€${formatNumber(batch.totalNet)} net payout). Ready for disbursement.`;
     document.getElementById('batch-progress-percent').innerText = '0%';
     document.getElementById('batch-progress-fill').style.width = '0%';
 
     subscribeBatchProgress(batch.id);
+    loadBatches();
     alert(`Batch ${batch.batchReference} calculated successfully! Net payout sum: €${formatNumber(batch.totalNet)}`);
   } catch (err) {
     alert('Error creating batch: ' + err.message);
@@ -166,7 +212,7 @@ async function triggerDisburse() {
     // Simulate animated progress
     let percent = 0;
     const interval = setInterval(() => {
-      percent += 20;
+      percent += 25;
       if (percent > 100) percent = 100;
       document.getElementById('batch-progress-percent').innerText = percent + '%';
       document.getElementById('batch-progress-fill').style.width = percent + '%';
@@ -178,8 +224,9 @@ async function triggerDisburse() {
         document.getElementById('batch-progress-text').innerText = 'Disbursement completed! SEPA ISO 20022 XML generated & audit trail sealed.';
         document.getElementById('btn-trigger-disburse').disabled = false;
         loadEmployees();
+        loadBatches();
       }
-    }, 300);
+    }, 250);
 
   } catch (err) {
     alert('Failed to trigger disburse: ' + err.message);

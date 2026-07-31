@@ -44,6 +44,11 @@ public class PayrollBatchController {
         return ResponseEntity.status(HttpStatus.CREATED).body(batch);
     }
 
+    @GetMapping
+    public ResponseEntity<List<PayrollBatch>> getAllBatches() {
+        return ResponseEntity.ok(batchRepository.findAll());
+    }
+
     @PostMapping("/{id}/process")
     public ResponseEntity<Map<String, String>> processBatch(@PathVariable UUID id) {
         payrollBatchService.processPayrollBatch(id);
